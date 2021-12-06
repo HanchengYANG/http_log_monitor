@@ -21,9 +21,10 @@ class LogGenerator:
 
 def run_test(log_list: list):
     print('====Http log monitor output start====')
-    mon = HttpLogMonitor()
+    mon = HttpLogMonitor(debug=True)
     for line in log_list:
         mon.feed_line(line)
+    mon.instant_statis_report()
     print('====Http log monitor output end====\n')
 
 

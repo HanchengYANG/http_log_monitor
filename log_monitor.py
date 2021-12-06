@@ -234,6 +234,8 @@ class HttpLogMonitor:
             # Called when exiting from the script, print statistics even if it's not fully filled
             self.print_ok(f'====Instant statistics report at {datetime.fromtimestamp(self.ts_now)}====')
             self.statis.report()
+        else:
+            self.print_err('Debug not activated, instant_statis_report is not usable.')
 
 
 if __name__ == '__main__':
