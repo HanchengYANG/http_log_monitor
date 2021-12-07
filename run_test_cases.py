@@ -48,7 +48,7 @@ time[1-120] = 1201 hits (At the very beginning of 120s, when monitor reads the f
 TEST 3: Disordered log
 One alert should be expected
 t[0] = 1200 hits                        t[0-119] = 1201 hits (alert)
-t[120] = 1hits                  =>      t[1-120] = 1 hits (disarm alert)
+t[120] = 1hits                  =>      t[1-120] = 2 hits (disarm alert)
 t[119] = 1hits (Disordered)''')
     log_config = [
         LogGenerator.Config(0, 1200),  # 0 - 119 = 1200 hits
