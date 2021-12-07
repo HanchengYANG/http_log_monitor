@@ -21,13 +21,14 @@ class HttpLogMonitor:
         Class records timestamp and section of a hit, and print statistic
         report when necessary.
         """
-        def __init__(self, monitor, period):
+        def __init__(self, monitor, period, report_handler=None):
             self._d = dict()  # statistic dictionary: {[section]: [hits]}
             self._ts_set = set()  # unique list of timestamp that consists statistics sample
             self._period = period
             self._mon = monitor
             self._debug = monitor.debug
             self.overall_hits = 0  # debug variable, overall hits of every report
+            self.report_handler = report_handler
 
         def add(self, ts: int, section: str):
             # Always do size check before add new log item into statistics.
@@ -63,6 +64,8 @@ class HttpLogMonitor:
                 if self._debug:
                     count += hits
                 self._mon.print_msg(f'Section: {section} hits: {hits}')
+            if callable(self.report_handler):
+                self.report_handler(self._d)
             if self._debug:
                 self.overall_hits += count
                 self._mon.print_dbg(f'Total hits: {count}')
@@ -78,13 +81,14 @@ class HttpLogMonitor:
         in case that OOO log arrives and requires sliding window to reverse.
         """
 
-        def __init__(self, monitor, window_size_sec, critical_rate, ooo_buffer_size):
+        def __init__(self, monitor, window_size_sec, critical_rate, ooo_buffer_size, alert_handler=None):
             self._w_size = window_size_sec  # Sliding window size
             self._ts_list = list()  # Ordered, unique list of timestamp of sliding window
             self._d = dict()  # Dictionary {[timestamp]: [hits]}
             self._hits = 0  # Number of hits in sliding window
             self._max = critical_rate * window_size_sec  # Critical hits in sliding window
             self._warn = False  # If the monitor is in warning state
+            self.alert_handler = alert_handler
             # FIFO Buffer to store ts-hits pair that pops from _ts_list and _d
             self._ooo_buffer_size = ooo_buffer_size
             self._ooo_buffer = deque(ooo_buffer_size * [[0, 0]], ooo_buffer_size)
@@ -146,9 +150,13 @@ class HttpLogMonitor:
             if not self._warn and hits > self._max:
                 self._warn = True
                 self._mon.print_warn(f'High traffic hits {hits} at {datetime.fromtimestamp(ts)}')
+                if callable(self.alert_handler):
+                    self.alert_handler(True, ts, hits)
             if self._warn and hits <= self._max:
                 self._warn = False
                 self._mon.print_warn(f'Traffic drops to {hits} at {datetime.fromtimestamp(ts)}')
+                if callable(self.alert_handler):
+                    self.alert_handler(False, ts, hits)
 
     class PrintColors:
         """For output color in cmd"""
@@ -157,7 +165,8 @@ class HttpLogMonitor:
         ERR = '\033[91m'
         ENDC = '\033[0m'
 
-    def __init__(self, statis_period=10, traffic_mon_size=120, critical_rate=10, ooo_buffer_size=3, debug=False):
+    def __init__(self, statis_period=10, traffic_mon_size=120, critical_rate=10, ooo_buffer_size=3, debug=False,
+                 statis_rep_handler=None, alert_handler=None):
         self.ts_now = None  # Timestamp of current time, always moves forward
         '''CSV related vairable'''
         self.col_list = list()  # CSV Column name list, line[0] of csv
@@ -171,12 +180,12 @@ class HttpLogMonitor:
         else:
             self.print_dbg = lambda *x: None  # Define debug print as dummy function
         '''Periodic statistics'''
-        self.statis = HttpLogMonitor.Statistics(self, statis_period)
+        self.statis = HttpLogMonitor.Statistics(self, statis_period, report_handler=statis_rep_handler)
         '''Traffic monitoring'''
         self.monitor = HttpLogMonitor.TrafficMonitor(self,
                                                      traffic_mon_size,
                                                      critical_rate,
-                                                     ooo_buffer_size)
+                                                     ooo_buffer_size, alert_handler=alert_handler)
 
     @staticmethod
     def print_warn(msg: str):
@@ -268,7 +277,8 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         print("Quitting...")
     finally:
-        mon.instant_statis_report()
+        if args.debug:
+            mon.instant_statis_report()
     if args.debug:
         print(f'Total log count: {mon.log_count}')
         print('Finished')
