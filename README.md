@@ -32,7 +32,7 @@
 ```python3 run_test_cases.py```
 
 In this script class "LogGenerator" is used for generating test log, then pass the log to log_monitor.
-Currently, there are 5 test cases in run_test_cases.py. Each test case will firstly print what output
+Currently, there are 6 test cases in run_test_cases.py. Each test case will firstly print what output
 to expect, then run the monitor and finally print the monitor output.
 
 ### To add test case:

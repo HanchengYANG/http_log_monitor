@@ -100,13 +100,23 @@ Expect: a warning tells log line at timestamp 0 is ignored.
     ]
     run_test(LogGenerator(log_config).output())
     print(r'''
-TEST 5: Sorted vs disordered
-Run monitor sample_csv.txt disordered(original) and sorted, expect same alert
+TEST 6: Sorted vs disordered
+Run monitor sample_csv.txt disordered(original) and sorted, compare alert output
     ''')
+    # Prepare special monitor that only print alert
+    def alert_print(t, ts, hits): print(f'Triggered {t} at {ts} hits {hits}')
+    mon = HttpLogMonitor(debug=False, alert_handler=alert_print)
+    def dummy(*args): pass
+    mon.print_warn = dummy
+    mon.print_err = dummy
+    mon.print_ok = dummy
+    mon.print_msg = dummy
+    # Original file
     print("====Output of original log file====")
     csv_file = open("sample_csv.txt")
-    run_test(csv_file.readlines())
-    print("====Output of sorted log file====")
+    for line in csv_file:
+        mon.feed_line(line)
+    # Sort csv
     csv_file = open("sample_csv.txt")
     csv_reader = csv.reader(csv_file)
     next(csv_reader)
@@ -116,5 +126,13 @@ Run monitor sample_csv.txt disordered(original) and sorted, expect same alert
         str_l = ','.join(line)
         log.append(str_l)
     h = '"remotehost","rfc931","authuser","date","request","status","bytes"'
-    run_test([h, *log])
+    # Prepare special monitor that only print alert, since it's sorted, don't need ooo_buffer
+    mon = HttpLogMonitor(debug=False, alert_handler=alert_print, ooo_buffer_size=0)
+    mon.print_warn = dummy
+    mon.print_err = dummy
+    mon.print_ok = dummy
+    mon.print_msg = dummy
+    print("====Output of sorted log file====")
+    for line in [h, *log]:
+        mon.feed_line(line)
 
