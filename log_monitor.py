@@ -99,6 +99,10 @@ class HttpLogMonitor:
             return self._ts_list[-1] - self._ts_list[0]
 
         def add(self, ts: int):
+            # If this ts is earlier than the latest element in ooo_buffer, it's too late
+            if self._ooo_buffer[-1][1] > 0 and ts <= self._ooo_buffer[-1][0]:
+                self._mon.print_warn(f'Log at {ts} ignored, it arrives too late')
+                return
             if ts not in self._ts_list:
                 bisect.insort(self._ts_list, ts)  # Insert in order
             # Update hits at "ts"

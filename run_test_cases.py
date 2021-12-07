@@ -1,4 +1,5 @@
 from log_monitor import HttpLogMonitor
+import csv
 
 
 class LogGenerator:
@@ -19,7 +20,7 @@ class LogGenerator:
         return self.log
 
 
-def run_test(log_list: list):
+def run_test(log_list: iter):
     print('====Http log monitor output start====')
     mon = HttpLogMonitor(debug=True)
     for line in log_list:
@@ -83,4 +84,37 @@ t[119] = 1 hit              makes t[0-119] = 1201 hits (alert)
         LogGenerator.Config(119, 1),
     ]
     run_test(LogGenerator(log_config).output())
+    print(r'''
+TEST 5: Log line too late
+Expect: a warning tells log line at timestamp 0 is ignored.
+    ''')
+    log_config = [
+        LogGenerator.Config(0, 1),
+        LogGenerator.Config(1, 1),
+        LogGenerator.Config(2, 1),
+        LogGenerator.Config(3, 1),
+        LogGenerator.Config(4, 1),
+        LogGenerator.Config(119, 1),
+        LogGenerator.Config(120, 1),
+        LogGenerator.Config(0, 1),
+    ]
+    run_test(LogGenerator(log_config).output())
+    print(r'''
+TEST 5: Sorted vs disordered
+Run monitor sample_csv.txt disordered(original) and sorted, expect same alert
+    ''')
+    print("====Output of original log file====")
+    csv_file = open("sample_csv.txt")
+    run_test(csv_file.readlines())
+    print("====Output of sorted log file====")
+    csv_file = open("sample_csv.txt")
+    csv_reader = csv.reader(csv_file)
+    next(csv_reader)
+    sorted_log_list = sorted(csv_reader, key=lambda row: row[3])
+    log = list()
+    for line in sorted_log_list:
+        str_l = ','.join(line)
+        log.append(str_l)
+    h = '"remotehost","rfc931","authuser","date","request","status","bytes"'
+    run_test([h, *log])
 
